@@ -1,0 +1,6 @@
+%Timeline of changes
+%
+%10/13/2018  - Change in "findallofthem.m"
+%In line 697 there was a reference to a nonexistent variable "Settings" which should have been "Info.Settings".
+%This error did not negatively impact correct running of the code in the old version. However, it did result in 
+%an error at the matlab command prompt, and resulted in a file sometimes unneccessarily being overwritten with the same data.
