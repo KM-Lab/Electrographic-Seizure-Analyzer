@@ -694,7 +694,7 @@ for FileNumber=startfile:endfile
         if FileExists
            %Load in the information stored so far
            LoadedSettings=AnalysisFile.Info.Settings;
-            if ~isequal(LoadedSettings,Settings)
+            if ~isequal(LoadedSettings,Info.Settings)
                 %h=warndlg('Analysis file will be overwritten');
                 overwrite=1;
             else
