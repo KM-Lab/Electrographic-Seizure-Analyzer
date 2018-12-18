@@ -1,5 +1,15 @@
 %Timeline of changes
 %
+%12/18/2018 - Fixed several bugs:
+% - The Amplitude Setting for negative peaks was not editable, but copied the corresponding setting for positive peaks -> fixed
+% - Added options in Settings to choose whether or not to save XLS and CSV formats.  This might avoid issues with the code not running properly on mac's 
+%   or other computers on which xlswrite does not work properly
+% - Improved notification of the part of analysis the program is on, and disabled buttons during analysis to prevent problems that occur when 
+%   changing any settings during analysis.
+% - Added a "stop analysis" option for multi-file analyses, which makes the program stop after analyzing the current file
+% - Fixed bug where the last positive/negative combined event was not created accurately when "merge" was selected
+%
+%
 %10/13/2018  - Change in "findallofthem.m"
 %In line 697 there was a reference to a nonexistent variable "Settings" which should have been "Info.Settings".
 %This error did not negatively impact correct running of the code in the old version. However, it did result in 
