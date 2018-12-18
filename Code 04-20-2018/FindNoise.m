@@ -99,6 +99,7 @@ while finish<totallength
     
     %mean and standard deviation of spike width and height for negative spikes
     length_negspikes=size(negspikes,1);
+    negfilter=[];
     swn=0;swnst=0;shn=0;shnst=0;
     %Find first negative spike in window
     while filteri<=length_negspikes && negspikes(filteri,1)<start 
@@ -134,6 +135,7 @@ while finish<totallength
     %Find the segment of interest in posspikes
     length_posspikes=size(posspikes,1);
     swp=0;swpst=0;shp=0;shpst=0;
+    posfilter=[];
     %Find first positive spike in window
     while filteri2<=length_posspikes && posspikes(filteri2,1)<start
         filteri2=filteri2+1;

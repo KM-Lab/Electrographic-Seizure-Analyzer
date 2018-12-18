@@ -17,7 +17,7 @@ Settings=struct;
 %User Interface & File Management
 Settings.buffer = 5;             %Allow program to load upto # files simultaneously. These are stored in buffer for quick toggling between files.
 Settings.eventpadding=1;         %When saving an event, save 1s before and after event for context (not currently using)
-Settings.outputfolder='Output'; %Subfolder for all output events
+Settings.outputfolder='Output';  %Subfolder for all output events
 
 
 %SETTINGS FOR PREANALYSIS (HISTOGRAM ANALYSIS OF PEAKS)

@@ -83,7 +83,7 @@ switch HowToMerge
         InEvent=0; %0 is no event, 1 is in event
         
         %Start looping through the events 
-        while and(i_p<number_of_positives,i_n<number_of_negatives)
+        while and(i_p<=number_of_positives,i_n<=number_of_negatives)
             if ~InEvent
                 %Find the start of the next event
                 if posevents(i_p,1)<negevents(i_n,1)

@@ -22,7 +22,7 @@ function varargout = findallofthem(varargin)
 
 % Edit the above text to modify the response to help findallofthem
 
-% Last Modified by GUIDE v2.5 03-Nov-2017 10:09:00
+% Last Modified by GUIDE v2.5 17-Dec-2018 13:26:31
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -278,6 +278,7 @@ set(handles.b1,'String',get(handles.BaselineUpper,'String'));
 set(handles.b2,'String',get(handles.BaselineLower,'String'));
 set(handles.s1,'String',get(handles.SpikesUpper,'String'));
 set(handles.s2,'String',get(handles.SpikesLower,'String'));
+set(handles.uipanel9,'UserData',1);
 
 
 % --- Apply manual changes to the thresholds
@@ -314,7 +315,7 @@ Settings.CutoffsMethod=get(handles.CutoffsMethod,'String');
 
 Info.Settings=Settings;
 set(handles.MenuFiles,'UserData',Info);
-
+set(handles.uipanel9,'UserData',1);
 RefreshDisplay(handles);
 
 
@@ -453,6 +454,24 @@ function MenuAnalyze_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
+AnalysisInProgress=get(handles.uipanel9,'UserData');
+if ~AnalysisInProgress
+    %Person clicked to end analysis
+    set(handles.uipanel9,'UserData',2); %2==quit current iteration
+    set(handles.MenuAnalyze,'Enable','off');
+else
+    %analysis is started, so change GUI to reflect that
+    set(handles.uipanel9,'UserData',0); %0==current analysis started
+    set(handles.MenuAnalyze,'String','Stop Analysis');
+    set(handles.ChangeStep1,'Enable','off');
+    set(handles.ChangeStep2,'Enable','off');
+    set(handles.MenuPrevious,'Enable','off');
+    set(handles.MenuNext,'Enable','off');
+    set(handles.MenuChangeCurrent,'Enable','off');
+    
+end
+
+if AnalysisInProgress
 %Load in the analysis parameters chosen
 Info=get(handles.MenuFiles,'UserData'); 
 DoAllFiles=get(handles.MenuAllFiles,'Value');   %Do 1 file, or all files
@@ -489,15 +508,17 @@ TotalEventList=[];
 for FileNumber=startfile:endfile
     
   %analyze the filenumber, as long as it is in the inclusion list.  
-  if 1 %TO DO: INTENDED TO GIVE OPT OUT OPTION FOR SPECIFIC FILES
+  if get(handles.uipanel9,'UserData')==0 %Finish current file
     %Load in data
     set(handles.ProgressUpdate,'String',[num2str(FileNumber) ': Load Data']);
+    drawnow
     data=LoadData(FileNumber,1,handles);                                                 %Load in data, without updating buffer
     Info=get(handles.MenuFiles,'UserData'); 
     Info.ActiveFile=FileNumber;
     
     %Find ALL spike information
     set(handles.ProgressUpdate,'String',[num2str(FileNumber) ': Find Spikes']);
+    drawnow
     [posspikes,negspikes,psn,nsn,psw,nsw]=SpikeFinder(data,Info.FileInfo(FileNumber).Fs,Info.Settings,0);  %Find positive and negative spikes
     Info.FileInfo(FileNumber).SpikesPositive=posspikes;     %Store positive spikes
     Info.FileInfo(FileNumber).SpikesNegative=negspikes;     %Store negative spikes
@@ -510,6 +531,7 @@ for FileNumber=startfile:endfile
     %Find all Noise
     if DoNoise
        set(handles.ProgressUpdate,'String',[num2str(FileNumber) ': Find Noise']);
+       drawnow
        ShowPopupNoise=get(handles.PopupNoise,'Value');
        noise=FindNoise(data,posspikes,negspikes,Info.FileInfo(FileNumber).Fs,Info.Settings,ShowPopupNoise);
        Info.FileInfo(FileNumber).Noise=noise;              %Stores noise
@@ -523,12 +545,14 @@ for FileNumber=startfile:endfile
     evt_stats_with_header=[];
     if DoEvents
        set(handles.ProgressUpdate,'String',[num2str(FileNumber) ': Find Events']);
+       drawnow
        [posevents,negevents]=FindEvents(data,posspikes,negspikes,psn,nsn,psw,nsw,Info.FileInfo(FileNumber).Fs,Info.Settings,0); 
        Info.FileInfo(FileNumber).EventsPos=posevents;              %Stores events
        Info.FileInfo(FileNumber).EventsNeg=negevents;              %Stores events
 
        %Combine positive and negative events,and incorporate noise
        set(handles.ProgressUpdate,'String',[num2str(FileNumber) ': Merge Events']);
+       drawnow
        eventcutoff=Info.Settings.min_szre_windw*Info.FileInfo(FileNumber).Fs;
        noisecutoff=Info.Settings.noisecutoff*Info.FileInfo(FileNumber).Fs;
        eventglue=Info.Settings.eventglue*Info.FileInfo(FileNumber).Fs;
@@ -675,6 +699,10 @@ for FileNumber=startfile:endfile
     
     DoSave=1;       %%%???
     if (DoSave)
+        %check which formats are desired
+        DoXLS=get(handles.IncludeXLS,'value');
+        DoCSV=get(handles.IncludeCSV,'value');
+        
         %Specify location of the analysis file
         outputfolder=Info.Settings.outputfolder;
         inputfolder=Info.CurrentDirectory;
@@ -719,34 +747,47 @@ for FileNumber=startfile:endfile
         
         %Save the information on the events to a CSV file
         %This includes the stats on individual events
-        try
+        if DoCSV
+          disp('Saving CSV file');
+          try
             %If there is already a file, append
             olddata=csvread(AnalysisFileCSV);
             if ~Info.Settings.SettingsChangedSinceLastSave
-                evt_stats=[olddata; evt_stats];
+                csv_evt_stats=[olddata; evt_stats];
+                disp('Appending existing file with new data');
+            else
+                disp('Overwriting existing file since settings have changed');    
+                csv_evt_stats=evt_stats;
             end
-        catch
-            
+          catch
+            disp('File did not yet exist, or could not be loaded. Starting new file');    
+            csv_evt_stats=evt_stats;
+          end
+          %Save the CSV file
+          csvwrite(AnalysisFileCSV,csv_evt_stats);
         end
-        %Save the CSV file
-        csvwrite(AnalysisFileCSV,evt_stats);
-        
         
         %Save the information on the events to a XLS file
         %This includes the stats on individual events
-        try
+        if DoXLS
+          disp('Saving XLS file');
+          try
             %If there is already a file, append
             [~,~,olddata]=xlsread(AnalysisFileXLS);
             if ~Info.Settings.SettingsChangedSinceLastSave
-                evt_stats_with_header=[olddata; evt_stats];
+                evt_stats_with_header=[olddata; num2cell(evt_stats)];
+                disp('Appending existing file with new data');
             else
                 evt_stats_with_header=[statsheader; num2cell(evt_stats)];
+                disp('Overwriting existing file since settings have changed');
             end
-        catch
+          catch
             evt_stats_with_header=[statsheader; num2cell(evt_stats)];
+            disp('File did not yet exist, or could not load, so new file started');
+          end
+          %Save the XLS file
+          xlswrite(AnalysisFileXLS,evt_stats_with_header);
         end
-        %Save the XLS file
-        xlswrite(AnalysisFileXLS,evt_stats_with_header);
         
         %Settings have not been changed since last save, since last save
         %just occurred.
@@ -768,8 +809,22 @@ for FileNumber=startfile:endfile
     end
  
     set(handles.ProgressUpdate,'String',[num2str(FileNumber) ': Done!']);
+    drawnow
   end
 end
+set(handles.MenuAnalyze,'Enable','on');
+set(handles.uipanel9,'UserData',1);
+set(handles.MenuAnalyze,'String','Analyze');
+set(handles.ChangeStep1,'Enable','on');
+set(handles.ChangeStep2,'Enable','on');
+set(handles.MenuPrevious,'Enable','on');
+set(handles.MenuNext,'Enable','on');
+set(handles.MenuChangeCurrent,'Enable','on');
+else
+    set(handles.ProgressUpdate,'String',['User interrupted']);
+end
+
+
 
 
 %%% -----------------------------------------------------------------
@@ -1063,7 +1118,7 @@ Settings.buffer=str2num(get(handles.set_buffer,'String'));
 Settings.all_dist_pos=str2num(get(handles.set_posprespike,'String'));
 Settings.all_dist_neg=str2num(get(handles.set_negprespike,'String'));
 Settings.all_thrsh_pos=str2num(get(handles.set_pospreamp,'String'));
-Settings.all_thrsh_pos=str2num(get(handles.set_negpreamp,'String'));
+Settings.all_thrsh_neg=str2num(get(handles.set_negpreamp,'String'));
 Settings.cl=str2num(get(handles.set_cutoff_all_low,'String'));
 Settings.ch=str2num(get(handles.set_cutoff_all_high,'String'));
 Settings.pcl=str2num(get(handles.set_cutoff_pos_low,'String'));
@@ -1132,7 +1187,7 @@ set(handles.set_buffer,'String',num2str(Settings.buffer));
 set(handles.set_posprespike,'String',num2str(Settings.all_dist_pos));
 set(handles.set_negprespike,'String',num2str(Settings.all_dist_neg));
 set(handles.set_pospreamp,'String',num2str(Settings.all_thrsh_pos));
-set(handles.set_negpreamp,'String',num2str(Settings.all_thrsh_pos));
+set(handles.set_negpreamp,'String',num2str(Settings.all_thrsh_neg));
 set(handles.set_cutoff_all_low,'String',num2str(Settings.cl));
 set(handles.set_cutoff_all_high,'String',num2str(Settings.ch));
 set(handles.set_cutoff_pos_low,'String',num2str(Settings.pcl));
@@ -2108,3 +2163,21 @@ function set_glue_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in IncludeCSV.
+function IncludeCSV_Callback(hObject, eventdata, handles)
+% hObject    handle to IncludeCSV (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of IncludeCSV
+
+
+% --- Executes on button press in IncludeXLS.
+function IncludeXLS_Callback(hObject, eventdata, handles)
+% hObject    handle to IncludeXLS (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of IncludeXLS
